@@ -74,7 +74,7 @@ def inferenceMatchResult(ast) {
               node.location
             );
           }
-        } while (oldResult !== node.match);
+        } while (oldResult != node.match);
       }
 
       return node.match;

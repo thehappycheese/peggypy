@@ -1,9 +1,46 @@
 
-from typing import Any, Literal, Optional, TypedDict, Union
+from typing import Any, Dict, Literal, Optional, TypedDict, Union
 
 from .grammar_error import GrammarError
-from .compiler import compile, passes
+from .compiler import compile
 from .parser import parse
+
+
+from .compiler.passes.generate_bytecode          import generateBytecode
+from .compiler.passes.generate_py                import generatePY
+from .compiler.passes.inference_match_result     import inferenceMatchResult
+from .compiler.passes.remove_proxy_rules         import removeProxyRules
+from .compiler.passes.report_duplicate_labels    import reportDuplicateLabels
+from .compiler.passes.report_duplicate_rules     import reportDuplicateRules
+from .compiler.passes.report_infinite_recursion  import reportInfiniteRecursion
+from .compiler.passes.report_infinite_repetition import reportInfiniteRepetition
+from .compiler.passes.report_undefined_rules     import reportUndefinedRules
+from .compiler.passes.report_incorrect_plucking  import reportIncorrectPlucking
+
+# Each pass is a function that may mutate the AST. 
+# throws |peg.GrammarError|.
+# TODO: this could be a flat array. 
+# Maybe it is broken up like this for the benefit of 
+# plugins which may modify the stages/passes?
+passes = {
+	"check": [
+		reportUndefinedRules,
+		reportDuplicateRules,
+		reportDuplicateLabels,
+		reportInfiniteRecursion,
+		reportInfiniteRepetition,
+		reportIncorrectPlucking,
+	],
+	"transform": [
+		removeProxyRules,
+		inferenceMatchResult,
+	],
+	"generate": [
+		generateBytecode,
+		generatePY,
+	],
+},
+
 
 # TODO: these appear to be javascript reserved words.
 
@@ -68,31 +105,21 @@ RESERVED_WORDS = [
 ]
 
 
-class OptionsType(TypedDict):
-	allowedStartRules:list[str]
-	cache:bool
-	dependencies:dict # valid only for "amd", "commonjs", "es", or "umd".
-	exportVar:Optional[str]
-	format:Literal["amd", "bare", "commonjs", "es", "globals", "umd"]
-	grammarSource:Any
-	output:Literal["parser", "source"]
-	plugins:list
-	trace:bool
+class GenerateOptions:
+	allowedStartRules:list[str] = None
+	cache:bool = False
+	dependencies:dict = {} # valid only for "amd", "commonjs", "es", or "umd".
+	exportVar:Optional[str] = None
+	format:Literal["amd", "bare", "commonjs", "es", "globals", "umd"] = "bare"
+	grammarSource = None
+	output:Literal["parser", "source"] = "parser"
+	plugins:list = []
+	trace:bool = False
 
-default_options:OptionsType = {
-	"allowedStartRules": None,
-	"cache": False,
-	"dependencies": {},
-	"exportVar": None,
-	"format": "bare",
-	"grammarSource":None,
-	"output": "parser",
-	"plugins": [],
-	"trace": False,
-}
+default_options = GenerateOptions()
 
-def generate(grammar:str, options:OptionsType=None):
-	options = default_options | options if options else default_options
+def generate(grammar:str, options:GenerateOptions=None):
+	options = default_options.update(options) if options else default_options
 	
 
 	config = {

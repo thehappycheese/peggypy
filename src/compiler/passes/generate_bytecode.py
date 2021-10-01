@@ -100,7 +100,7 @@ visitor = require("../visitor");
 #
 # [15] IF_NOT_ERROR t, f
 #
-#        if (stack.top() !== FAILED) {
+#        if (stack.top() != FAILED) {
 #          interpret(ip + 3, ip + 3 + t);
 #        } else {
 #          interpret(ip + 3 + t, ip + 3 + t + f);
@@ -108,7 +108,7 @@ visitor = require("../visitor");
 #
 # [16] WHILE_NOT_ERROR b
 #
-#        while(stack.top() !== FAILED) {
+#        while(stack.top() != FAILED) {
 #          interpret(ip + 2, ip + 2 + b);
 #        }
 #
@@ -428,7 +428,7 @@ def generateBytecode(ast) {
 
     action(node, context) {
       env = cloneEnv(context.env);
-      emitCall = node.expression.type !== "sequence"
+      emitCall = node.expression.type != "sequence"
                     or node.expression.elements.length == 0;
       expressionCode = generate(node.expression, {
         sp: context.sp + (emitCall ? 1 : 0),
@@ -437,7 +437,7 @@ def generateBytecode(ast) {
       });
       match = node.expression.match | 0;
       # Function only required if expression can match
-      functionIndex = emitCall and match !== NEVER_MATCH
+      functionIndex = emitCall and match != NEVER_MATCH
         ? addFunctionConst(False, Object.keys(env), node.code)
         : None;
 
@@ -661,7 +661,7 @@ def generateBytecode(ast) {
           )
           : None;
         # Expectation not required if node always match
-        expectedIndex = (match !== ALWAYS_MATCH)
+        expectedIndex = (match != ALWAYS_MATCH)
           ? addExpectedConst({
             type: "literal",
             value: node.value,
@@ -692,7 +692,7 @@ def generateBytecode(ast) {
       # Character class constant only required if condition is generated
       classIndex = match == SOMETIMES_MATCH ? addClassConst(node) : None;
       # Expectation not required if node always match
-      expectedIndex = (match !== ALWAYS_MATCH)
+      expectedIndex = (match != ALWAYS_MATCH)
         ? addExpectedConst({
           type: "class",
           value: node.parts,
@@ -712,7 +712,7 @@ def generateBytecode(ast) {
     any(node) {
       match = node.match | 0;
       # Expectation not required if node always match
-      expectedIndex = (match !== ALWAYS_MATCH)
+      expectedIndex = (match != ALWAYS_MATCH)
         ? addExpectedConst({
           type: "any",
         })

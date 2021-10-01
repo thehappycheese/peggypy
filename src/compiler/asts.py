@@ -49,7 +49,7 @@ asts = {
       },
 
       literal(node) {
-        return node.value !== "";
+        return node.value != "";
       },
 
       class: consumesTrue,

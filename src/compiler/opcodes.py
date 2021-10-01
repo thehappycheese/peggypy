@@ -4,7 +4,7 @@
 opcodes = {
   # Stack Manipulation
 
-  /** @deprecated Unused */
+  # @deprecated Unused
   PUSH:              0,    # PUSH c
   PUSH_EMPTY_STRING: 35,   # PUSH_EMPTY_STRING
   PUSH_UNDEFINED:    1,    # PUSH_UNDEFINED
@@ -34,7 +34,7 @@ opcodes = {
   MATCH_STRING:     18,    # MATCH_STRING s, a, f, ...
   MATCH_STRING_IC:  19,    # MATCH_STRING_IC s, a, f, ...
   MATCH_CHAR_CLASS: 20,    # MATCH_CHAR_CLASS c, a, f, ...
-  /** @deprecated Replaced with `MATCH_CHAR_CLASS` */
+  # @deprecated Replaced with `MATCH_CHAR_CLASS`
   MATCH_REGEXP:     20,    # MATCH_REGEXP r, a, f, ...
   ACCEPT_N:         21,    # ACCEPT_N n
   ACCEPT_STRING:    22,    # ACCEPT_STRING s

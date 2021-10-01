@@ -40,7 +40,7 @@ def reportInfiniteRecursion(ast) {
 
       rule = asts.findRule(ast, node.name);
 
-      if (visitedRules.indexOf(node.name) !== -1) {
+      if (visitedRules.indexOf(node.name) != -1) {
         visitedRules.push(node.name);
 
         throw new GrammarError(
@@ -49,7 +49,7 @@ def reportInfiniteRecursion(ast) {
             + ")",
           rule.nameLocation,
           backtraceRefs.map((ref, i, a) => ({
-            message: i + 1 !== a.length
+            message: i + 1 != a.length
               ? `Step ${i + 1}: call of the rule "${ref.name}" without input consumption`
               : `Step ${i + 1}: call itself without input consumption - left recursion`,
             location: ref.location,
