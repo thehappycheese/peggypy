@@ -1,9 +1,9 @@
 
-from typing import Any, Dict, Literal, Optional, TypedDict, Union
+from typing import Any, Callable, Literal, Optional, OrderedDict
 
 from .grammar_error import GrammarError
 from .compiler import compile
-from .parser import parse
+from .parser.parser import parse
 
 
 from .compiler.passes.generate_bytecode          import generateBytecode
@@ -22,27 +22,29 @@ from .compiler.passes.report_incorrect_plucking  import reportIncorrectPlucking
 # TODO: this could be a flat array. 
 # Maybe it is broken up like this for the benefit of 
 # plugins which may modify the stages/passes?
-passes = {
-	"check": [
+
+
+passes:Any = OrderedDict([
+	("check", [
 		reportUndefinedRules,
 		reportDuplicateRules,
 		reportDuplicateLabels,
 		reportInfiniteRecursion,
 		reportInfiniteRepetition,
 		reportIncorrectPlucking,
-	],
-	"transform": [
+	]),
+	("transform", [
 		removeProxyRules,
 		inferenceMatchResult,
-	],
-	"generate": [
+	]),
+	("generate", [
 		generateBytecode,
 		generatePY,
-	],
-},
+	]),
+]),
 
 
-# TODO: these appear to be javascript reserved words.
+# TODO: these appear to be javascript reserved words. Change to pythons.
 
 RESERVED_WORDS = [
 	# Reserved keywords as of ECMAScript 2015

@@ -1,36 +1,31 @@
+from dataclasses import dataclass
+from typing import Any, Union
 import re
-
-
-class Cursor_Location:
-	offset: int
-	line:int
-	column:int
+from .diagnostic import Diagnostic
+from .location import Location
 
 @dataclass
-class Location:
-	source:str
-	start: Cursor_Location
-	end:Cursor_Location
-
+class Source_Line:
+	source:Any # TODO: What type should this be?
+	text:list[str]
 
 # Thrown when the grammar contains an error.
 class GrammarError(Exception):
 
-	def __init__(self, message, location:Location, diagnostics=None):
+	message:str
+	location:Location
+	diagnostics:list[Diagnostic]
+
+	def __init__(self, message:str, location:Location, diagnostics:Union[list[Diagnostic], None]=None):
+		super().__init__(message)
 		self.message = message
 		self.location = location
-		self.diagnostics = diagnostics
-		super(message)
+		self.diagnostics = diagnostics if diagnostics is not None else []
 		self.name = "GrammarError"
-		self.location = location
-		if not diagnostics:
-			diagnostics = []
-		
-		self.diagnostics = diagnostics
 	
 
-	def toString(self):
-		_str = super.toString()
+	def toString(self)->str:
+		_str = super().__str__()
 		if self.location:
 			_str += "\n at "
 			if self.location.source is not None:
@@ -44,7 +39,7 @@ class GrammarError(Exception):
 		return _str
 
 	@staticmethod
-	def _entry(srcLines, location, indent, message = ""):
+	def _entry(srcLines:list[Source_Line], location:Location, indent:int, message:str = ""):
 		_str = ""
 		src = None
 
@@ -93,14 +88,14 @@ class GrammarError(Exception):
 	# 	# @param {SourceText[]} sources mapping from location source to source text
 	# 	# @returns {string} the formatted error
 	
-	# TODO: shoudl this be the __str__ or __repl__ function instead?
-	def format(self, sources):
+	# TODO: should this be the __str__ or __repl__ function instead?
+	def format(self, sources:list[Location]):
 		srcLines = [
-			{
-				"source":source_text["source"],
-				"text":re.split("(\r\n)|\n|\r", source_text["text"])
-			}
-			for source_text in sources
+			Source_Line(
+				source = location.source,
+				text   = re.split("(\r\n)|\n|\r", location["text"])
+			)
+			for location in sources
 		]
 
 		# Calculate maximum width of all lines
@@ -116,10 +111,10 @@ class GrammarError(Exception):
 
 		_str = f"Error: {self.message}"
 		if self.location:
-			_str += GrammarError.entry(srcLines, self.location, maxLine)
+			_str += GrammarError._entry(srcLines, self.location, maxLine)
 
 		for diag in self.diagnostics:
-			_str += GrammarError.entry(srcLines, diag.location, maxLine, diag.message)
+			_str += GrammarError._entry(srcLines, diag.location, maxLine, diag.message)
 
 		return _str
 	

@@ -217,7 +217,7 @@ visitor = require("../visitor");
 # that is equivalent of an unknown match result and signals the generator that
 # runtime check for the |FAILED| is required. Trick is explained on the
 # Wikipedia page (https://en.wikipedia.org/wiki/Asm.js#Code_generation)
-def generateBytecode(ast) {
+def generateBytecode(ast, *args) {
   literals = [];
   classes = [];
   expectations = [];
