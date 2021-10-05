@@ -5,7 +5,9 @@
 from typing import Any
 from ...grammar_error import GrammarError
 from ..visitor import Visitor
-from ...node import Node, Node_MATCH
+from ...syntax_tree import Node, MATCH
+import ...syntax_tree as st
+
 
 # ALWAYS_MATCH = 1
 # SOMETIMES_MATCH = 0
@@ -17,12 +19,12 @@ from ...node import Node, Node_MATCH
 #  1: positive result, always match
 def inferenceMatchResult(ast):
 	def sometimesMatch(self, node, *args):
-		node.match = Node_MATCH.SOMETIMES_MATCH
-		return Node_MATCH.SOMETIMES_MATCH
+		node.match = MATCH.SOMETIMES
+		return MATCH.SOMETIMES
 
 	def alwaysMatch(self, node, *args):
 		inference(node.expression) ## TODO
-		node.match = Node_MATCH.ALWAYS_MATCH
+		node.match = MATCH.ALWAYS
 		return node.match
 
 	def inferenceExpression(node):
@@ -37,30 +39,30 @@ def inferenceMatchResult(ast):
 			
 			result = inference(element) ## TODO
 			
-			if result == Node_MATCH.ALWAYS_MATCH:
+			if result == MATCH.ALWAYS:
 				always+=1
 
-			if result == Node_MATCH.NEVER_MATCH:
+			if result == MATCH.NEVER:
 				never+=1
 		
 
 		if always == length:
-			return Node_MATCH.ALWAYS_MATCH
+			return MATCH.ALWAYS
 		
 		if forChoice:
-			return Node_MATCH.NEVER_MATCH if never == length else Node_MATCH.SOMETIMES_MATCH
+			return MATCH.NEVER if never == length else MATCH.SOMETIMES
 		
 
-		return Node_MATCH.NEVER_MATCH if never > 0 else Node_MATCH.SOMETIMES_MATCH
+		return MATCH.NEVER if never > 0 else MATCH.SOMETIMES
 	
 
-	def rule(self:Visitor, node:Node, *args:Any, **kwargs:Any) -> Node_MATCH:
-		oldResult:Node_MATCH
+	def rule(self:Visitor, node:syntax_tree.Rule, *args:Any, **kwargs:Any) -> MATCH:
+		oldResult:MATCH
 		count = 0
 
 		# If property not yet calculated, do that
 		if node.match is None:
-			node.match = Node_MATCH.SOMETIMES_MATCH
+			node.match = MATCH.SOMETIMES
 			while True:
 				oldResult = node.match
 				node.match = self.visit(node.expression)

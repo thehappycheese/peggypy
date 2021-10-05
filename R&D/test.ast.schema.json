@@ -2,24 +2,48 @@
     "$schema": "http://json-schema.org/schema",
     "type":"object",
     "properties": {
-        "type":{
-            "const": "grammar"
-        },
-        "topLevelInitializer":true,
-        "initializer":true,
-        "rules":{
-            "type":"array",
-            "items":{"$ref":"#/definitions/rule"}
-        },
+        "type":{"const": "grammar"},
+        "topLevelInitializer":{"oneOf": [
+            {"type":"null"},
+            {
+                "description": "{{code}} initializer block run once when the parser is created",
+                "type":"object",
+                "properties": {
+                    "type":         {"const":"top_level_initializer"},
+                    "location":     {"$ref": "#/definitions/location"},
+                    "code":         {"type":  "string"},
+                    "codeLocation": {"$ref": "#/definitions/location"}
+                },
+                "required": ["type", "location", "code", "codeLocation"],
+                "additionalProperties": false
+            }
+        ]},
+        "initializer":{"oneOf":[
+            {"type":"null"},
+            {
+                "description": "`{code}` initializer block run each time the parser is executed",
+                "type":"object",
+                "properties": {
+                    "type":         {"const":"initializer"},
+                    "location":     {"$ref": "#/definitions/location"},
+                    "code":         {"type":  "string"},
+                    "codeLocation": {"$ref": "#/definitions/location"}
+                },
+                "required": ["type", "location", "code", "codeLocation"],
+                "additionalProperties": false
+            }
+        ]},
+        "rules":{"type":"array","items":{"$ref":"#/definitions/rule"}},
         "location":{"$ref": "#/definitions/location"}
     },
     "required": ["type","topLevelInitializer","initializer","rules","location"],
+
     "definitions": {
         "cursor_location":{
             "type":"object",
             "properties": {
                 "offset":{"type":"integer"},
-                "line":{"type":"integer"},
+                "line":  {"type":"integer"},
                 "column":{"type":"integer"}
             },
             "required": ["offset", "line", "column"],
@@ -30,7 +54,7 @@
             "type":"object",
             "properties": {
                 "start":{"$ref":"#/definitions/cursor_location"},
-                "end":{"$ref":"#/definitions/cursor_location"}
+                "end":  {"$ref":"#/definitions/cursor_location"}
             },
             "required": ["start", "end"],
             "additionalProperties": false
@@ -40,42 +64,76 @@
         "rule":{
             "type":"object",
             "properties":{
-                "type":{"const":"rule"},
-                "name":{"type":"string"},
-                "expression":{"$ref":"#/definitions/expression"},
+                "type":        {"const":"rule"},
+                "name":        {"type":"string"},
+                "expression":  {"oneOf": [
+                        {"$ref":"#/definitions/named"},
+                        {"$ref":"#/definitions/expression"}
+                    ]
+                },
                 "nameLocation":{"$ref":"#/definitions/location"},
-                "location":{"$ref": "#/definitions/location"}
+                "location":    {"$ref": "#/definitions/location"}
             },
             "required": ["type","name","expression","nameLocation","location"],
             "additionalProperties": false
         },
 
-
+        "named":{
+            "type":"object",
+            "properties": {
+                "type":      {"const":"named"},
+                "location":  {"$ref": "#/definitions/location"},
+                "name":      {"type":"string"},
+                "expression":{"$ref": "#/definitions/expression"}
+            },
+            "required": ["type", "location", "name", "expression"],
+            "additionalProperties": false
+        },
+        
         "expression":{
-            "anyOf": [
+            "oneOf": [
+                
+                {"$ref":"#/definitions/choice"},
                 {"$ref":"#/definitions/action"},
                 {"$ref":"#/definitions/sequence"},
                 {"$ref":"#/definitions/labeled"},
-                {"$ref":"#/definitions/named"},
-                {"$ref":"#/definitions/rule_ref"},
-                {"$ref":"#/definitions/zero_or_more"},
-                {"$ref":"#/definitions/one_or_more"},
-                {"$ref":"#/definitions/choice"},
+                {"$ref":"#/definitions/labeled_picked"},
+                
+                {"$ref":"#/definitions/prefixed_expression"},
+                {"$ref":"#/definitions/suffixed_expression"},
+                
                 {"$ref":"#/definitions/group"},
+                
+                {"$ref":"#/definitions/predicate_expression"},
+                
+                {"$ref":"#/definitions/rule_ref"},
                 {"$ref":"#/definitions/literal"},
-                {"$ref":"#/definitions/class"}
+                {"$ref":"#/definitions/class"},
+                {"$ref":"#/definitions/any"}
             ]
         },
 
         
+
+        "choice":{
+            "type":"object",
+            "properties": {
+                "type":        {"const":"choice"},
+                "location":    {"$ref": "#/definitions/location"},
+                "alternatives":{"type":"array", "items": {"$ref": "#/definitions/expression"}}
+            },
+            "required": ["type", "location", "alternatives"],
+            "additionalProperties": false
+        },
+
         "action":{
             "type":"object",
             "properties": {
-                "type":{"const":"action"},
-                "expression":{"$ref":"#/definitions/expression"},
-                "location":{"$ref": "#/definitions/location"},
-                "code":{"type":"string"},
-                "codeLocation":{"$ref": "#/definitions/location"}
+                "type":        {"const": "action"},
+                "expression":  {"$ref":  "#/definitions/expression"},
+                "location":    {"$ref":  "#/definitions/location"},
+                "code":        {"type":  "string"},
+                "codeLocation":{"$ref":  "#/definitions/location"}
             },
             "required": ["type","expression", "location","code","codeLocation"],
             "additionalProperties": false
@@ -84,7 +142,7 @@
         "sequence":{
             "type":"object",
             "properties": {
-                "type":{"const":"sequence"},
+                "type":    {"const":"sequence"},
                 "elements":{"type":"array","items":{"$ref": "#/definitions/expression"}},
                 "location":{"$ref": "#/definitions/location"}
             },
@@ -95,73 +153,61 @@
         "labeled":{
             "type":"object",
             "properties": {
-                "type":{"const":"labeled"},
-                "location":{"$ref": "#/definitions/location"},
-                "label":{"type":"string"},
+                "type":         {"const":"labeled"},
+                "location":     {"$ref": "#/definitions/location"},
+                "label":        {"type":"string"},
                 "labelLocation":{"$ref": "#/definitions/location"},
-                "expression":{"$ref": "#/definitions/expression"}
+                "expression":   {"$ref": "#/definitions/expression"}
             },
             "required": ["type", "location", "label", "labelLocation","expression"],
             "additionalProperties": false
         },
-
-        "named":{
+        "labeled_picked":{
             "type":"object",
             "properties": {
-                "type":{"const":"named"},
-                "location":{"$ref": "#/definitions/location"},
-                "name":{"type":"string"},
-                "expression":{"$ref": "#/definitions/expression"}
+                "type":         {"const":"labeled"},
+                "location":     {"$ref": "#/definitions/location"},
+                "label":        {"type":["string","null"]},
+                "pick":         {"const":true},
+                "labelLocation":{"$ref": "#/definitions/location"},
+                "expression":   {"$ref": "#/definitions/expression"}
             },
-            "required": ["type", "location", "name", "expression"],
+            "required": ["type", "location", "label", "labelLocation","expression","pick"],
             "additionalProperties": false
         },
 
-        "rule_ref":{
+        "prefixed_expression":{
             "type":"object",
             "properties": {
-                "type":{"const":"rule_ref"},
-                "location":{"$ref": "#/definitions/location"},
-                "name":{"type":"string"}
+                "type":{"oneOf":[
+                    {"const":"text",       "description": "$rule"},
+                    {"const":"simple_and", "description": "&rule"},
+                    {"const":"simple_not", "description": "!rule"}
+                ]},
+                "expression":{"$ref": "#/definitions/expression"},
+                "location":{"$ref": "#/definitions/location"}
             },
-            "required": ["type", "location", "name"],
+            "required": ["type","expression","location"],
             "additionalProperties": false
         },
 
-        "zero_or_more":{
+        "suffixed_expression":{
             "type":"object",
             "properties": {
-                "type":{"const":"zero_or_more"},
+                "type":{"oneOf":[
+                    {"const":"optional",     "description": "rule?"},
+                    {"const":"zero_or_more", "description": "rule*"},
+                    {"const":"one_or_more",  "description": "rule+"}
+                ]},
                 "location":{"$ref": "#/definitions/location"},
                 "expression":{"$ref": "#/definitions/expression"}
             },
             "required": ["type", "location", "expression"],
-            "additionalProperties": false
-        },
-
-        "one_or_more":{
-            "type":"object",
-            "properties": {
-                "type":{"const":"one_or_more"},
-                "location":{"$ref": "#/definitions/location"},
-                "expression":{"$ref": "#/definitions/expression"}
-            },
-            "required": ["type", "location", "expression"],
-            "additionalProperties": false
-        },
-
-        "choice":{
-            "type":"object",
-            "properties": {
-                "type":{"const":"choice"},
-                "location":{"$ref": "#/definitions/location"},
-                "alternatives":{"type":"array", "items": {"$ref": "#/definitions/expression"}}
-            },
-            "required": ["type", "location"],
             "additionalProperties": false
         },
 
         "group":{
+            "description": "(rules...)",
             "type":"object",
             "properties": {
                 "type":{"const":"group"},
@@ -172,7 +218,36 @@
             "additionalProperties": false
         },
 
+        "predicate_expression":{
+            "description": "A code block that controls matching based on the code environment",
+            "type":"object",
+            "properties": {
+                "type":{"oneOf":[
+                    {"const":"semantic_and", "description": "&{code}"},
+                    {"const":"semantic_not",  "description": "!{code}"}
+                ]},
+                "location":{"$ref": "#/definitions/location"},
+                "code":{"type":"string"},
+                "codeLocation":{"$ref": "#/definitions/location"}
+            },
+            "required": ["type", "location", "expression", "code", "codeLocation"],
+            "additionalProperties": false
+        },
+
+        "rule_ref":{
+            "description": "A reference to the name of another rule",
+            "type":"object",
+            "properties": {
+                "type":{"const":"rule_ref"},
+                "location":{"$ref": "#/definitions/location"},
+                "name":{"type":"string"}
+            },
+            "required": ["type", "location", "name"],
+            "additionalProperties": false
+        },
+
         "literal":{
+            "description": "\"string literal\"",
             "type":"object",
             "properties": {
                 "type":{"const":"literal"},
@@ -185,13 +260,14 @@
         },
 
         "class":{
+            "description": "[charracters / character ranges]",
             "type":"object",
             "properties": {
                 "type":{"const":"class"},
                 "parts":{
                     "type":"array",
                     "items": {
-                        "anyOf":[
+                        "oneOf":[
                             {"type":"string"},
                             {"type":"array","items": {"type":"string"}}
                         ]
@@ -202,6 +278,17 @@
                 "location":{"$ref": "#/definitions/location"}
             },
             "required": ["type", "location", "parts","inverted", "ignoreCase"],
+            "additionalProperties": false
+        },
+
+        "any":{
+            "description": ".",
+            "type":"object",
+            "properties": {
+                "type":{"const":"any"},
+                "location":{"$ref": "#/definitions/location"}
+            },
+            "required": ["type", "location"],
             "additionalProperties": false
         }
     }

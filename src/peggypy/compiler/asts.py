@@ -43,7 +43,7 @@ def alwaysConsumesOnSuccess(ast, node):
 
 	# TODO: if the visit functions of the Visitor class were designed to accept `ast`
 	#   as a parameter then this closure would not be needed
-	def consumesRuleRef(self, node, *args):
+	def consumesRuleRef(self:Visitor, node:Node, *args:Any, **kwargs:Any):
 		return self.visit(findRule(ast, node.name))
 
 	consumes = Visitor(
@@ -59,6 +59,4 @@ def alwaysConsumesOnSuccess(ast, node):
 		literal      = consumesLiteral,
 		_class       = consumesTrue,
 		_any         = consumesTrue,
-	)
-
-	return consumes(node)
+	).visit(node)
