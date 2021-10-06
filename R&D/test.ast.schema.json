@@ -89,7 +89,7 @@
             "required": ["type", "location", "name", "expression"],
             "additionalProperties": false
         },
-        
+
         "expression":{
             "oneOf": [
                 
@@ -230,7 +230,7 @@
                 "code":{"type":"string"},
                 "codeLocation":{"$ref": "#/definitions/location"}
             },
-            "required": ["type", "location", "expression", "code", "codeLocation"],
+            "required": ["type", "location", "code", "codeLocation"],
             "additionalProperties": false
         },
 
