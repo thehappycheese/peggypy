@@ -3,14 +3,16 @@
 
 from typing import Any, Callable
 
-from peggypy.node import Node
+from .utils_and_types.syntax_tree import Grammar
 
 
-# Generates a parser from a specified grammar AST. Throws |peg.GrammarError|
-# if the AST contains a semantic error. Note that not all errors are detected
-# during the generation and some may protrude to the generated parser and
-# cause its malfunction.
-def compile_ast_code(ast:Node, passes:list[Callable[..., Any]], **options:Any) -> str:
+def compile_ast_code(ast:Grammar, passes:list[Callable[..., Any]], **options:Any) -> str:
+	"""
+	Generates a parser from a specified grammar AST. Throws `GrammarError`
+	if the AST contains a semantic error. Note that not all errors are detected
+	during the generation and some may protrude to the generated parser and
+	cause its malfunction.
+	"""
 
 	if "allowedStartRules" not in options or options["allowedStartRules"] is None:
 		options["allowedStartRules"] = [ast.rules[0].name]
@@ -31,16 +33,16 @@ def compile_ast_code(ast:Node, passes:list[Callable[..., Any]], **options:Any) -
 			# mutates ast
 			each_pass(ast, options)
 
-	return ast.code
+	# TODO: is this right? if not go back and check the definition of Grammar.
+	#   Maybe ast is not actually a grammar by this point... I think it has been mutated.
+	return ast.code if ast.code is not None else "" 
 
 
-def compile_parser(ast:Node, passes:list[Callable[..., Any]], **options:Any) -> Callable[..., Any]:
-	# mutates ast
-	compile_ast_code(ast, passes, **options)
-	return eval(ast.code)
+def compile_parser(ast:Grammar, passes:list[Callable[..., Any]], **options:Any) -> Callable[..., Any]:
+	return eval(
+		compile_ast_code(ast, passes, **options)
+	)
 
 
-def compile_to_source(ast:Node, passes:list[Callable[..., Any]], **options:Any) -> str:
-	# mutates ast
-	compile_ast_code(ast, passes, **options)
-	return ast.code
+def compile_to_source(ast:Grammar, passes:list[Callable[..., Any]], **options:Any) -> str:
+	return compile_ast_code(ast, passes, **options)

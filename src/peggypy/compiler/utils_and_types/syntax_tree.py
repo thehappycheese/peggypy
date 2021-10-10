@@ -8,13 +8,18 @@ class MATCH(Enum):
 	ALWAYS = 1
 	SOMETIMES = 0
 	NEVER = -1
-	def invert(self)->MATCH:
-		if self==MATCH.ALWAYS:
+	def invert(self) -> MATCH:
+		if self == MATCH.ALWAYS:
 			return MATCH.NEVER
 		elif self == MATCH.NEVER:
 			return MATCH.ALWAYS
 		else:
 			return MATCH.SOMETIMES
+
+
+
+
+
 
 
 @dataclass(init=True)
@@ -34,6 +39,10 @@ class Location:
 	@staticmethod
 	def lift(arg:dict[str,dict[str,int]]) -> Location:
 		return Location(**{k:Cursor_Location.lift(v) for k,v in arg.items()})
+	@staticmethod
+	def dummy()->Location:
+		"""Constructs a dummy location object for testing purposes"""
+		return Location(Cursor_Location(0,0,0), Cursor_Location(1,1,1))
 
 	
 @dataclass(init=False)
@@ -44,7 +53,8 @@ class Node:
 
 @dataclass
 class Expression(Node):
-	expression:Rule_Expression
+	# Only Rule may allow Named but we need to put Union here
+	expression:Union[Rule_Expression, Named]
 
 @dataclass
 class Code(Node):
@@ -58,6 +68,21 @@ class Grammar(Node):
 	top_level_initializer:Typing_Optional[Code] = None
 	initializer:Typing_Optional[Code] = None
 	rules:list[Rule] = field(default_factory=list)
+
+	code:Typing_Optional[str] = field(default=None, init=False) # TODO: I'm not sure if all nodes should have this?? This is populated by the final step of the compiler?
+	
+	def findRule(self:Grammar, name:str) -> Typing_Optional[Rule]:
+		for rule in self.rules:
+			if rule.name == name:
+				return rule
+		return None
+
+
+	def indexOfRule(self:Grammar, name:str):
+		for index, rule in enumerate(self.rules):	
+			if rule.name == name:
+				return index
+		return -1  # TODO: should this be None?
 
 
 
@@ -74,39 +99,41 @@ class Initializer(Code):
 
 
 @dataclass
-class Named(Node):
+class Named(Expression):
 	type:str=field(default="named", init=False)
 	name:str
-	expression:Rule_Expression
 
 
 @dataclass
-class Rule(Node):
+class Rule(Expression):
 	type:str=field(default="rule", init=False)
 	name:str
 	nameLocation:Location
-	expression:Union[Rule_Expression, Named]
 
 
 @dataclass
 class Action(Code, Expression):
+	"""Some python code enclosed in some curley braces `Somerule = somepattern {return "barf"}`"""
 	type:str=field(default="action", init=False)
 
 
 @dataclass
 class Choice(Node):
+	"""A forward-slash-separated  sequence of patterns; tested from left to right, stopping at the first match `MathThisRule / OrThisRule`"""
 	type:str=field(default="choice", init=False)
 	alternatives:list[Rule_Expression]
 
 
 @dataclass
 class Sequence(Node):
+	"""A space separated sequence of patterns to match against `MatchThisRule "Then this literal" [Cls]`"""
 	type:str=field(default="sequence", init=False)
 	elements:list[Rule_Expression]
 
 
 @dataclass
 class Labeled(Expression):
+	"""`label:(someexpression)`"""
 	type:str=field(default="labeled", init=False)
 	label:Typing_Optional[str]  # should only be None if pick is true. must always be specified
 	labelLocation:Location
@@ -167,24 +194,30 @@ class Semantic_Not(Code):
 
 @dataclass()
 class Rule_Ref(Node):
+	"""A reference to another rule by rule name"""
 	type:str=field(default="rule_ref", init=False)
 	name:str
 
 @dataclass()
 class Literal(Node):
+	"""`"abc"`"""
 	type:str=field(default="literal", init=False)
 	value:str
 	ignoreCase:bool
 
 @dataclass()
 class Class(Node):
+	"""`[A-z0-9]`"""
 	type:str=field(default="class", init=False)
 	parts:list[Union[str,list[str]]]
 	inverted:bool
 	ignoreCase:bool
 
+@dataclass()
 class Any(Node):
+	"""`.`"""
 	type:str=field(default="any", init=False)
+
 
 Rule_Expression = Union[
 	Code,

@@ -1,12 +1,20 @@
 
 
-# I get the feeling this code has been ported over from elsewhere...
-# TODO: possibly python has a suitable Stack object already.
+
+from typing import Callable, Literal, Optional
+
+
 class Stack:
 	"""Utility class that helps generating code for C-like languages."""
 	
+	sp:int
+	maxSp:int
+	varName:str
+	ruleName:str
+
 	# TODO: type is a reserved word
-	def __init__(self, ruleName:str, varName:str, type):
+	# TODO: python may not require the type. all stack declarations in the output appear to be local variables... no need for global
+	def __init__(self, ruleName:str, varName:str, type: Literal["let", "var"]): 
 		"""
 		Constructs the helper for tracking variable slots of the stack virtual machine
 		
@@ -28,7 +36,7 @@ class Stack:
 		self.type     = type
 	
 
-	def name(self, i):
+	def name(self, i:int) -> str:
 		"""
 		Returns name of the variable at the index `i`.
 		
@@ -52,10 +60,10 @@ class Stack:
 				f"Rule '{self.ruleName}': The variable stack underflow: attempt to use a variable '{self.varName}<x>' at an index {i}"
 			)
 		
-		return self.varName + i
+		return f"{self.varName}{i}"
 	
 
-	def push(self, exprCode):
+	def push(self, exprCode:str):
 		"""
 		Assigns `exprCode` to the new variable in the stack, returns generated code.
 		As the result, the size of a stack increases on 1.
@@ -80,7 +88,7 @@ class Stack:
 		return code
 
 
-	def pop_many(self, n):
+	def pop_many(self, n:int) -> list[str]:
 		"""
 		Returns the names of the `n` variables removed from the top of the stack.
 				
@@ -103,7 +111,7 @@ class Stack:
 		return [self.name(self.sp+1+i) for i in range(n)]
 
 
-	def pop(self):
+	def pop(self) -> str:
 		"""
 		Returns name of the variable removed from the top of the stack.
 				
@@ -140,7 +148,7 @@ class Stack:
 		return self.name(self.sp); 
 		
 
-	def index(self, i):
+	def index(self, i:int):
 		"""
 		Returns name of the variable at index `i`.
 
@@ -208,20 +216,12 @@ class Stack:
 	
 
 	# TODO: unused????
-	def checkedIf(self, pos, generateIf, generateElse=None):
+	def checkedIf(self, position:int, generateIf:Callable[[], None], generateElse:Optional[Callable[[], None]]=None):
 		"""
-		Checks that code in the `generateIf` and `generateElse` move the stack pointer in the same way.
-		
 		### Parameters
 
 		pos : int
 			Opcode number for error messages
-		
-		generateIf : Function
-			First function that works with self.stack
-
-		generateElse : Function, optional
-			Second function that works with self.stack
 		
 		### Raises
 
@@ -229,26 +229,30 @@ class Stack:
 			If `generateElse` is defined and the stack pointer moved differently in the
 		    `generateIf` and `generateElse`
 		"""
-		baseSp = self.sp
+		stack_pointer_start = self.sp
 		
-		# TODO: This looks like some bullshit here
+		# TODO: This looks like it might be improved with a different approach?? lambdas dont feel like the right way to do side-effects in python?
 		generateIf()
 
-		if generateElse:
-			thenSp = self.sp
+		if generateElse is not None:
 
-			self.sp = baseSp
+			stack_pointer_after_if = self.sp
+			
+			# reset the stack pointer before calling the else arm
+			self.sp = stack_pointer_start 
 			generateElse()
+			stack_pointer_after_else = self.sp
 
-			if thenSp != self.sp:
+			# confirm that the stack pointer moved by the same amount in both the if and else arms
+			if not stack_pointer_after_if == stack_pointer_after_else:
 				raise Exception(
-					"Rule '" + self.ruleName + "', position " + pos + ": "
-					+ "Branches of a condition can't move the stack pointer differently "
-					+ "(before: " + baseSp + ", after then: " + thenSp + ", after else: " + self.sp + ")."
+					f"Rule='{self.ruleName}', {position=}: " +
+					"Branches of a condition can't move the stack pointer differently " +
+					f"(before: {stack_pointer_start}, after then: {stack_pointer_after_if}, after else: {self.sp})."
 				)
 	
 	 # TODO: unused????
-	def checkedLoop(self, pos, generateBody):
+	def checkedLoop(self, position:int, generateBody:Callable[..., None]):
 		"""
 		Checks that code in the `generateBody` do not move stack pointer.
 		
@@ -271,7 +275,7 @@ class Stack:
 
 		if not baseSp == self.sp:
 			raise Exception(
-				"Rule '" + self.ruleName + "', position " + pos + ": "
-				+ "Body of a loop can't move the stack pointer "
-				+ "(before: " + baseSp + ", after: " + self.sp + ")."
+				f"Rule '{self.ruleName}', position {position}: " +
+				"Body of a loop can't move the stack pointer " +
+				f"(before: {baseSp}, after: {self.sp})."
 			)

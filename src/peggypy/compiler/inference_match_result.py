@@ -2,11 +2,11 @@
 
 #from ...location import Location
 #from ...diagnostic import Diagnostic
-from typing import Any
-from ...grammar_error import GrammarError
-from ..visitor import Visitor
-from ...syntax_tree import Node, MATCH
-import ...syntax_tree as st
+from typing import Any, Callable
+from ..grammar_error import GrammarError
+from .utils_and_types.visitor import Visitor
+from .utils_and_types.syntax_tree import Expression, Node, MATCH
+from .utils_and_types import syntax_tree
 
 
 # ALWAYS_MATCH = 1
@@ -17,22 +17,23 @@ import ...syntax_tree as st
 # -1: negative result, matching of that node always fails
 #  0: neutral result, may be fail, may be match
 #  1: positive result, always match
-def inferenceMatchResult(ast):
-	def sometimesMatch(self, node, *args):
+
+def inferenceMatchResult(ast:Node):
+	def sometimesMatch(self:Visitor, node:Node, *args:Any, **kwargs:Any):
 		node.match = MATCH.SOMETIMES
 		return MATCH.SOMETIMES
 
-	def alwaysMatch(self, node, *args):
+	def alwaysMatch(self:Visitor, node:Expression, *args:Any, **kwargs:Any) -> MATCH:
 		inference(node.expression) ## TODO
 		node.match = MATCH.ALWAYS
 		return node.match
 
-	def inferenceExpression(node):
+	def inferenceExpression(node:Expression) -> MATCH:
 		node.match = inference(node.expression) ## TODO
 		return node.match
 	
-	def inferenceElements(elements, forChoice):
-		length = elements.length
+	def inferenceElements(elements:list[Node], forChoice:bool) -> MATCH:
+		length = len(elements)
 		always = 0
 		never = 0
 		for element in elements:
@@ -56,7 +57,7 @@ def inferenceMatchResult(ast):
 		return MATCH.NEVER if never > 0 else MATCH.SOMETIMES
 	
 
-	def rule(self:Visitor, node:syntax_tree.Rule, *args:Any, **kwargs:Any) -> MATCH:
+	def rule(self:Visitor, node:Type[ast.Rule], *args:Any, **kwargs:Any) -> MATCH:
 		oldResult:MATCH
 		count = 0
 
@@ -94,7 +95,7 @@ def inferenceMatchResult(ast):
 		return node.match
 	
 	
-	def sequence(node:Node):
+	def sequence(node:syntax_tree.Sequence):
 		node.match = inferenceElements(node.elements, False)
 		return node.match
 
@@ -122,7 +123,7 @@ def inferenceMatchResult(ast):
 	
 	# |any| not match on empty inputde:
 
-	inference = Visitor(
+	inference:Callable[..., MATCH] = Visitor(
 		rule         = rule,
 		named        = inferenceExpression,
 		choice       = choice,
@@ -143,9 +144,9 @@ def inferenceMatchResult(ast):
 		_class       = _class,
 		_any         = sometimesMatch,
 		# |any| not match on empty input
-	)
+	).visit
 
-	inference(ast);
+	inference(ast)
 }
 
 inferenceMatchResult.ALWAYS_MATCH    = Node_MATCH.ALWAYS_MATCH;

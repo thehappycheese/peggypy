@@ -1,13 +1,19 @@
 from dataclasses import dataclass
 from typing import Any, Union
 import re
-from .diagnostic import Diagnostic
-from .location import Location
+from .compiler.utils_and_types.syntax_tree import Location
 
 @dataclass
 class Source_Line:
 	source:Any # TODO: What type should this be?
 	text:list[str]
+
+@dataclass
+class Diagnostic:
+    message:str
+    location:Location
+
+
 
 # Thrown when the grammar contains an error.
 class GrammarError(Exception):

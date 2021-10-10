@@ -2,11 +2,11 @@
 
 from typing import Any
 
-from peggypy.node import Node
-from ...location import Location
-from ...diagnostic import Diagnostic
-from ...grammar_error import GrammarError
-from ..visitor import Visitor
+from ..grammar_error import GrammarError
+from ..diagnostic import Diagnostic
+
+from .utils_and_types.syntax_tree import Node
+from .utils_and_types.visitor import Visitor
 
 # Removes proxy rules -- that is, rules that only delegate to other rule.
 def removeProxyRules(ast:list[Node], **options:Any):
