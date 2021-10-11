@@ -14,18 +14,18 @@ def compile_ast_code(ast:Grammar, passes:list[Callable[..., Any]], **options:Any
 	cause its malfunction.
 	"""
 
-	if "allowedStartRules" not in options or options["allowedStartRules"] is None:
-		options["allowedStartRules"] = [ast.rules[0].name]
+	if "allowed_start_rules" not in options or options["allowed_start_rules"] is None:
+		options["allowed_start_rules"] = [ast.rules[0].name]
 
-	if not isinstance(options["allowedStartRules"], list):
-		raise Exception("allowedStartRules must be an array") ## TODO: Of node names??
+	if not isinstance(options["allowed_start_rules"], list):
+		raise Exception("allowed_start_rules must be an array") ## TODO: Of node names??
 
-	if len(options["allowedStartRules"])==0:
+	if len(options["allowed_start_rules"])==0:
 		raise Exception("Must have at least one start rule")
 	
 	allRules = [rule.name for rule in ast.rules]
 
-	for rule in options["allowedStartRules"]:
+	for rule in options["allowed_start_rules"]:
 		if not rule in allRules:
 			raise Exception(f'Unknown start rule "{rule}"')
 		

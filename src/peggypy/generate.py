@@ -1,21 +1,21 @@
-
-from typing import Any, Callable, Literal, Optional, OrderedDict
+from __future__ import annotations
+from typing import Any, Callable, Literal, Optional, OrderedDict, Protocol
 
 from .grammar_error import GrammarError
 from .compiler import compile
 from .parser.parser import parse
 
 
-from .compiler.passes.generate_bytecode          import generateBytecode
-from .compiler.passes.generate_py                import generatePY
-from .compiler.passes.inference_match_result     import inferenceMatchResult
-from .compiler.passes.remove_proxy_rules         import removeProxyRules
-from .compiler.passes.report_duplicate_labels    import reportDuplicateLabels
-from .compiler.passes.report_duplicate_rules     import reportDuplicateRules
-from .compiler.passes.report_infinite_recursion  import reportInfiniteRecursion
-from .compiler.passes.report_infinite_repetition import reportInfiniteRepetition
-from .compiler.passes.report_undefined_rules     import reportUndefinedRules
-from .compiler.passes.report_incorrect_plucking  import reportIncorrectPlucking
+from .compiler.generate_bytecode          import generateBytecode
+from .compiler.generate_py                import generatePY
+from .compiler.inference_match_result     import inferenceMatchResult
+from .compiler.remove_proxy_rules         import removeProxyRules
+from .compiler.report_duplicate_labels    import report_duplicate_labels
+from .compiler.report_duplicate_rules     import reportDuplicateRules
+from .compiler.report_infinite_recursion  import report_infinite_recusrsion
+from .compiler.report_infinite_repetition import reportInfiniteRepetition
+from .compiler.report_undefined_rules     import report_undefined_rules
+from .compiler.report_incorrect_plucking  import reportIncorrectPlucking
 
 # Each pass is a function that may mutate the AST. 
 # throws |peg.GrammarError|.
@@ -26,10 +26,10 @@ from .compiler.passes.report_incorrect_plucking  import reportIncorrectPlucking
 
 passes:Any = OrderedDict([
 	("check", [
-		reportUndefinedRules,
+		report_undefined_rules,
 		reportDuplicateRules,
-		reportDuplicateLabels,
-		reportInfiniteRecursion,
+		report_duplicate_labels,
+		report_infinite_recusrsion,
 		reportInfiniteRepetition,
 		reportIncorrectPlucking,
 	]),
@@ -106,16 +106,18 @@ RESERVED_WORDS = [
 	"await",
 ]
 
+class Pluggin(Protocol):
+	def use(self, config:dict[str, Any], options:GenerateOptions):...
 
 class GenerateOptions:
-	allowedStartRules:list[str] = None
+	allowed_start_rules:Optional[list[str]] = None
 	cache:bool = False
-	dependencies:dict = {} # valid only for "amd", "commonjs", "es", or "umd".
+	#dependencies:dict = {} # valid only for "amd", "commonjs", "es", or "umd".
 	exportVar:Optional[str] = None
 	format:Literal["amd", "bare", "commonjs", "es", "globals", "umd"] = "bare"
 	grammarSource = None
 	output:Literal["parser", "source"] = "parser"
-	plugins:list = []
+	plugins:list[Pluggin] = []  # TODO: what is plugin type?
 	trace:bool = False
 
 default_options = GenerateOptions()

@@ -702,11 +702,11 @@ function generateJS(ast, options) {
     }
 
     const startRuleFunctions = "{ "
-      + options.allowedStartRules.map(
+      + options.allowed_start_rules.map(
         r => r + ": peg$parse" + r
       ).join(", ")
       + " }";
-    const startRuleFunction = "peg$parse" + options.allowedStartRules[0];
+    const startRuleFunction = "peg$parse" + options.allowed_start_rules[0];
 
     parts.push([
       "function peg$parse(input, options) {",
