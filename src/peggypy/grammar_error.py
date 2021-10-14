@@ -30,7 +30,7 @@ class GrammarError(Exception):
 		self.name = "GrammarError"
 	
 
-	def toString(self)->str:
+	def __str__(self)->str:
 		_str = super().__str__()
 		if self.location:
 			_str += "\n at "

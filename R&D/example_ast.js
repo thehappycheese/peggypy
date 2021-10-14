@@ -1040,11 +1040,9 @@ f={
                    "type": "class",
                    "parts": [
                       " ",
-                      "	",
-                      "
- ",
-                      "
- "
+                      "\t",
+                      "\r",
+                      "\n"
                    ],
                    "inverted": false,
                    "ignoreCase": false,

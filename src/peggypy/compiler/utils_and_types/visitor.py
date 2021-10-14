@@ -16,7 +16,9 @@ from .syntax_tree import (
 	Sequence,
 	Any as st_Any,
 	Code,
-	Literal
+	Literal,
+	Simple_And,
+	Simple_Not
 )
 
 
@@ -107,7 +109,7 @@ class Visitor:
 		return item in self.funcs
 
 
-NT = TypeVar("NT",bound="Node")
+NT = TypeVar("NT", bound="Node")
 Node_Visitor_Type = Callable[[Visitor, NT, dict[str, Any]], Any]
 
 Node_Types = Union[Grammar, Choice, Sequence, Expression]
@@ -124,4 +126,6 @@ Node_Visitor = Union[
 	Node_Visitor_Type[Literal],
 	Node_Visitor_Type[Action],
 	Node_Visitor_Type[Labeled],
+	Node_Visitor_Type[Simple_And],
+	Node_Visitor_Type[Simple_Not],
 ]

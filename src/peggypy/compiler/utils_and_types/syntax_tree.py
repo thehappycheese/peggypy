@@ -1,8 +1,13 @@
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Literal, Optional as Typing_Optional, Union
+from typing import (
+	Literal,
+	Optional as Typing_Optional,
+	Union
+)
 from enum import Enum
+
 
 class MATCH(Enum):
 	ALWAYS = 1
@@ -18,27 +23,18 @@ class MATCH(Enum):
 
 
 
-
-
-
-
 @dataclass(init=True)
 class Cursor_Location:
 	offset:int
 	line:int
 	column:int
-	@staticmethod
-	def lift(arg:dict[str, int]) -> Cursor_Location:
-		return Cursor_Location(**arg)
 
 
 @dataclass
 class Location:
 	start:Cursor_Location
 	end:Cursor_Location
-	@staticmethod
-	def lift(arg:dict[str,dict[str,int]]) -> Location:
-		return Location(**{k:Cursor_Location.lift(v) for k,v in arg.items()})
+	source:Typing_Optional[str] = field(default=None, init=False)
 	@staticmethod
 	def dummy()->Location:
 		"""Constructs a dummy location object for testing purposes"""

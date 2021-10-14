@@ -1,6 +1,9 @@
 
 
-from .utils_and_types import syntax_tree as ast
+from typing import Any
+from .utils_and_types.syntax_tree import (
+	Grammar
+)
 from .utils_and_types.stack import Stack
 from .utils_and_types.visitor import Visitor
 from .utils_and_types.opcodes import opcodes as op
@@ -219,7 +222,7 @@ from .utils_and_types.opcodes import opcodes as op
 # that is equivalent of an unknown match result and signals the generator that
 # runtime check for the |FAILED| is required. Trick is explained on the
 # Wikipedia page (https://en.wikipedia.org/wiki/Asm.js#Code_generation)
-def generateBytecode(ast, *args):
+def generateBytecode(grammar:Visitor, options:dict[str, Any]):
 	literals     = []
 	classes      = []
 	expectations = []
