@@ -2,7 +2,22 @@
 
 from typing import Any
 from .utils_and_types.syntax_tree import (
-	Grammar
+	Action,
+	Choice,
+	Class,
+	Grammar,
+	Group,
+	Labeled,
+	Named,
+	One_or_More,
+	Optional,
+	Rule,
+	Semantic_Not,
+	Sequence,
+	Simple_And,
+	Simple_Not,
+	Text,
+	Zero_or_More
 )
 from .utils_and_types.stack import Stack
 from .utils_and_types.visitor import Visitor
@@ -222,59 +237,58 @@ from .utils_and_types.opcodes import opcodes as op
 # that is equivalent of an unknown match result and signals the generator that
 # runtime check for the |FAILED| is required. Trick is explained on the
 # Wikipedia page (https://en.wikipedia.org/wiki/Asm.js#Code_generation)
-def generateBytecode(grammar:Visitor, options:dict[str, Any]):
+def generateBytecode(grammar:Grammar, options:dict[str, Any]):
+
 	literals     = []
 	classes      = []
 	expectations = []
 	functions    = []
 
 	def addLiteralConst(value):
-		index = literals.indexOf(value)
-		return literals.push(value) - 1 if index == -1 else index
+		if value in literals:
+			return literals.index(value)
+		else:
+			literals.append(value)
+			return len(literals) - 1
 	
 
-	def addClassConst(node) {
+	def addClassConst(node:Class):
 		cls = {
-			value: node.parts,
-			inverted: node.inverted,
-			ignoreCase: node.ignoreCase,
-		};
-		pattern = JSON.stringify(cls);
-		index = classes.findIndex(c => JSON.stringify(c) == pattern);
+			"value": node.parts,
+			"inverted": node.inverted,
+			"ignoreCase": node.ignoreCase,
+		}
+		# TODO
+		pattern = JSON.stringify(cls)
+		index = classes.findIndex(lambda c: JSON.stringify(c) == pattern)
+		return index == -1 ? classes.push(cls) - 1 : index
+	
 
-		return index == -1 ? classes.push(cls) - 1 : index;
-	}
+	def addExpectedConst(expected):
+		pattern = JSON.stringify(expected)
+		index = expectations.findIndex(e => JSON.stringify(e) == pattern)
+		return index == -1 ? expectations.push(expected) - 1 : index
+	
 
-	def addExpectedConst(expected) {
-		pattern = JSON.stringify(expected);
-		index = expectations.findIndex(e => JSON.stringify(e) == pattern);
-
-		return index == -1 ? expectations.push(expected) - 1 : index;
-	}
-
-	def addFunctionConst(predicate, params, code) {
+	def addFunctionConst(predicate, params, code):
 		func = { predicate, params, body: code };
 		pattern = JSON.stringify(func);
-		index = functions.findIndex(f => JSON.stringify(f) == pattern);
+		index = functions.findIndex(f => JSON.stringify(f) == pattern)
+		return index == -1 ? functions.push(func) - 1 : index
 
-		return index == -1 ? functions.push(func) - 1 : index;
-	}
-
-	def cloneEnv(env) {
+	def cloneEnv(env):
 		clone = {};
-
 		Object.keys(env).forEach(name => {
 			clone[name] = env[name];
-		});
+		})
+		return clone
+	
 
-		return clone;
-	}
+	def buildSequence(first, ...args):
+		return first.concat(...args)
+	
 
-	def buildSequence(first, ...args) {
-		return first.concat(...args);
-	}
-
-	def buildCondition(match, condCode, thenCode, elseCode) {
+	def buildCondition(match, condCode, thenCode, elseCode):
 		if (match == ALWAYS_MATCH) { return thenCode; }
 		if (match == NEVER_MATCH)  { return elseCode; }
 
@@ -283,20 +297,17 @@ def generateBytecode(grammar:Visitor, options:dict[str, Any]):
 			thenCode,
 			elseCode
 		);
-	}
+	
 
-	def buildLoop(condCode, bodyCode) {
-		return condCode.concat([bodyCode.length], bodyCode);
-	}
+	def buildLoop(condCode, bodyCode):
+		return condCode.concat([bodyCode.length], bodyCode)
 
-	def buildCall(functionIndex, delta, env, sp) {
-		params = Object.keys(env).map(name => sp - env[name]);
+	def buildCall(functionIndex, delta, env, sp):
+		params = Object.keys(env).map(name => sp - env[name])
+		return [op.CALL, functionIndex, delta, params.length].concat(params)
 
-		return [op.CALL, functionIndex, delta, params.length].concat(params);
-	}
-
-	def buildSimplePredicate(expression, negative, context) {
-		match = expression.match | 0;
+	def buildSimplePredicate(expression, negative, context):
+		match = expression.match or 0
 
 		return buildSequence(
 			[op.PUSH_CURR_POS],
@@ -322,9 +333,9 @@ def generateBytecode(grammar:Visitor, options:dict[str, Any]):
 				)
 			)
 		);
-	}
+	
 
-	def buildSemanticPredicate(node, negative, context) {
+	def buildSemanticPredicate(node, negative, context):
 		functionIndex = addFunctionConst(
 			True, Object.keys(context.env), node.code
 		);
@@ -344,391 +355,393 @@ def generateBytecode(grammar:Visitor, options:dict[str, Any]):
 					negative ? [op.PUSH_UNDEFINED] : [op.PUSH_FAILED]
 				)
 			)
-		);
-	}
+		)
+	
 
-	def buildAppendLoop(expressionCode) {
+	def buildAppendLoop(expressionCode):
 		return buildLoop(
 			[op.WHILE_NOT_ERROR],
 			buildSequence([op.APPEND], expressionCode)
 		);
-	}
+	
 
-	generate = visitor.build({
-		grammar(node) {
-			node.rules.forEach(generate);
 
-			node.literals = literals;
-			node.classes = classes;
-			node.expectations = expectations;
-			node.functions = functions;
-		},
 
-		rule(node) {
-			node.bytecode = generate(node.expression, {
-				sp: -1,        # Stack pointer
-				env: {},       # Mapping of label names to stack positions
-				pluck: [],     # Fields that have been picked
-				action: None,  # Action nodes pass themselves to children here
+
+
+
+
+
+
+
+
+	
+	def grammar(self:Visitor, node:Grammar):
+		node.rules.forEach(generate);
+
+		node.literals = literals;
+		node.classes = classes;
+		node.expectations = expectations;
+		node.functions = functions;
+	
+
+	def rule(self:Visitor, node:Rule):
+		node.bytecode = generate(node.expression, {
+			sp: -1,        # Stack pointer
+			env: {},       # Mapping of label names to stack positions
+			pluck: [],     # Fields that have been picked
+			action: None,  # Action nodes pass themselves to children here
+		});
+
+	def named(self:Visitor, node:Named, context):
+		match = node.match | 0;
+		# Expectation not required if node always fail
+		nameIndex = (match == NEVER_MATCH)
+			? None
+			: addExpectedConst({ type: "rule", value: node.name });
+
+		# The code generated below is slightly suboptimal because |FAIL| pushes
+		# to the stack, so we need to stick a |POP| in front of it. We lack a
+		# dedicated instruction that would just report the failure and not touch
+		# the stack.
+		return buildSequence(
+			[op.SILENT_FAILS_ON],
+			generate(node.expression, context),
+			[op.SILENT_FAILS_OFF],
+			buildCondition(match, [op.IF_ERROR], [op.FAIL, nameIndex], [])
+		);
+
+	def choice(self:Visitor, node:Choice, context):
+		def buildAlternativesCode(alternatives, context) {
+			match = alternatives[0].match | 0;
+			first = generate(alternatives[0], {
+				sp: context.sp,
+				env: cloneEnv(context.env),
+				action: None,
 			});
-		},
-
-		named(node, context) {
-			match = node.match | 0;
-			# Expectation not required if node always fail
-			nameIndex = (match == NEVER_MATCH)
-				? None
-				: addExpectedConst({ type: "rule", value: node.name });
-
-			# The code generated below is slightly suboptimal because |FAIL| pushes
-			# to the stack, so we need to stick a |POP| in front of it. We lack a
-			# dedicated instruction that would just report the failure and not touch
-			# the stack.
-			return buildSequence(
-				[op.SILENT_FAILS_ON],
-				generate(node.expression, context),
-				[op.SILENT_FAILS_OFF],
-				buildCondition(match, [op.IF_ERROR], [op.FAIL, nameIndex], [])
-			);
-		},
-
-		choice(node, context) {
-			def buildAlternativesCode(alternatives, context) {
-				match = alternatives[0].match | 0;
-				first = generate(alternatives[0], {
-					sp: context.sp,
-					env: cloneEnv(context.env),
-					action: None,
-				});
-				# If an alternative always match, no need to generate code for the next
-				# alternatives. Because their will never tried to match, any side-effects
-				# from next alternatives is impossible so we can skip their generation
-				if (match == ALWAYS_MATCH) {
-					return first;
-				}
-
-				# Even if an alternative never match it can have side-effects from
-				# a semantic predicates or an actions, so we can not skip generation
-				# of the first alternative.
-				# We can do that when analysis for possible side-effects will be introduced
-				return buildSequence(
-					first,
-					alternatives.length > 1
-						? buildCondition(
-							SOMETIMES_MATCH,
-							[op.IF_ERROR],
-							buildSequence(
-								[op.POP],
-								buildAlternativesCode(alternatives.slice(1), context)
-							),
-							[]
-						)
-						: []
-				);
+			# If an alternative always match, no need to generate code for the next
+			# alternatives. Because their will never tried to match, any side-effects
+			# from next alternatives is impossible so we can skip their generation
+			if (match == ALWAYS_MATCH) {
+				return first;
 			}
-
-			return buildAlternativesCode(node.alternatives, context);
-		},
-
-		action(node, context) {
-			env = cloneEnv(context.env);
-			emitCall = node.expression.type != "sequence"
-										or node.expression.elements.length == 0;
-			expressionCode = generate(node.expression, {
-				sp: context.sp + (emitCall ? 1 : 0),
-				env,
-				action: node,
-			});
-			match = node.expression.match | 0;
-			# Function only required if expression can match
-			functionIndex = emitCall and match != NEVER_MATCH
-				? addFunctionConst(False, Object.keys(env), node.code)
-				: None;
-
-			return emitCall
-				? buildSequence(
-					[op.PUSH_CURR_POS],
-					expressionCode,
-					buildCondition(
-						match,
-						[op.IF_NOT_ERROR],
+			# Even if an alternative never match it can have side-effects from
+			# a semantic predicates or an actions, so we can not skip generation
+			# of the first alternative.
+			# We can do that when analysis for possible side-effects will be introduced
+			return buildSequence(
+				first,
+				alternatives.length > 1
+					? buildCondition(
+						SOMETIMES_MATCH,
+						[op.IF_ERROR],
 						buildSequence(
-							[op.LOAD_SAVED_POS, 1],
-							buildCall(functionIndex, 1, env, context.sp + 2)
+							[op.POP],
+							buildAlternativesCode(alternatives.slice(1), context)
 						),
 						[]
+					)
+					: []
+			);
+		}
+		return buildAlternativesCode(node.alternatives, context);
+	
+
+	def action(self:Visitor, node:Action, context):
+		env = cloneEnv(context.env);
+		emitCall = node.expression.type != "sequence" or node.expression.elements.length == 0
+		expressionCode = generate(node.expression, {
+			sp: context.sp + (1 if emitCall else 0),
+			env,
+			action: node,
+		});
+		match = node.expression.match | 0;
+		# Function only required if expression can match
+		functionIndex = addFunctionConst(False, Object.keys(env), node.code) if emitCall and match != NEVER_MATCH else None;
+
+		return buildSequence(
+				[op.PUSH_CURR_POS],
+				expressionCode,
+				buildCondition(
+					match,
+					[op.IF_NOT_ERROR],
+					buildSequence(
+						[op.LOAD_SAVED_POS, 1],
+						buildCall(functionIndex, 1, env, context.sp + 2)
 					),
-					[op.NIP]
-				)
-				: expressionCode;
-		},
+					[]
+				),
+				[op.NIP]
+			) if emitCall else expressionCode
+	
 
-		sequence(node, context) {
-			def buildElementsCode(elements, context) {
-				if (elements.length > 0) {
-					processedCount = node.elements.length - elements.length + 1;
+	def sequence(self:Visitor, node:Sequence, context):
+		def buildElementsCode(elements, context) {
+			if (elements.length > 0) {
+				processedCount = node.elements.length - elements.length + 1;
 
-					return buildSequence(
-						generate(elements[0], {
-							sp: context.sp,
+				return buildSequence(
+					generate(elements[0], {
+						sp: context.sp,
+						env: context.env,
+						pluck: context.pluck,
+						action: None,
+					}),
+					buildCondition(
+						elements[0].match | 0,
+						[op.IF_NOT_ERROR],
+						buildElementsCode(elements.slice(1), {
+							sp: context.sp + 1,
 							env: context.env,
 							pluck: context.pluck,
-							action: None,
+							action: context.action,
 						}),
-						buildCondition(
-							elements[0].match | 0,
-							[op.IF_NOT_ERROR],
-							buildElementsCode(elements.slice(1), {
-								sp: context.sp + 1,
-								env: context.env,
-								pluck: context.pluck,
-								action: context.action,
-							}),
-							buildSequence(
-								processedCount > 1 ? [op.POP_N, processedCount] : [op.POP],
-								[op.POP_CURR_POS],
-								[op.PUSH_FAILED]
-							)
+						buildSequence(
+							processedCount > 1 ? [op.POP_N, processedCount] : [op.POP],
+							[op.POP_CURR_POS],
+							[op.PUSH_FAILED]
+						)
+					)
+				);
+			} else {
+				if (context.pluck.length > 0) {
+					return buildSequence(
+						[op.PLUCK, node.elements.length + 1, context.pluck.length],
+						context.pluck.map(eSP => context.sp - eSP)
+					);
+				}
+
+				if (context.action) {
+					functionIndex = addFunctionConst(
+						False,
+						Object.keys(context.env),
+						context.action.code
+					);
+
+					return buildSequence(
+						[op.LOAD_SAVED_POS, node.elements.length],
+						buildCall(
+							functionIndex,
+							node.elements.length + 1,
+							context.env,
+							context.sp
 						)
 					);
 				} else {
-					if (context.pluck.length > 0) {
-						return buildSequence(
-							[op.PLUCK, node.elements.length + 1, context.pluck.length],
-							context.pluck.map(eSP => context.sp - eSP)
-						);
-					}
-
-					if (context.action) {
-						functionIndex = addFunctionConst(
-							False,
-							Object.keys(context.env),
-							context.action.code
-						);
-
-						return buildSequence(
-							[op.LOAD_SAVED_POS, node.elements.length],
-							buildCall(
-								functionIndex,
-								node.elements.length + 1,
-								context.env,
-								context.sp
-							)
-						);
-					} else {
-						return buildSequence([op.WRAP, node.elements.length], [op.NIP]);
-					}
+					return buildSequence([op.WRAP, node.elements.length], [op.NIP]);
 				}
 			}
+		}
 
-			return buildSequence(
-				[op.PUSH_CURR_POS],
-				buildElementsCode(node.elements, {
-					sp: context.sp + 1,
-					env: context.env,
-					pluck: [],
-					action: context.action,
-				})
-			);
-		},
+		return buildSequence(
+			[op.PUSH_CURR_POS],
+			buildElementsCode(node.elements, {
+				sp: context.sp + 1,
+				env: context.env,
+				pluck: [],
+				action: context.action,
+			})
+		);
 
-		labeled(node, context) {
-			let env = context.env;
-			label = node.label;
-			sp = context.sp + 1;
+	def labeled(self:Visitor, node:Labeled, context):
+		let env = context.env;
+		label = node.label;
+		sp = context.sp + 1;
 
-			if (label) {
-				env = cloneEnv(context.env);
-				context.env[node.label] = sp;
-			}
+		if (label) {
+			env = cloneEnv(context.env);
+			context.env[node.label] = sp;
+		}
 
-			if (node.pick) {
-				context.pluck.push(sp);
-			}
+		if (node.pick) {
+			context.pluck.push(sp);
+		}
 
-			return generate(node.expression, {
-				sp: context.sp,
-				env,
-				action: None,
-			});
-		},
+		return generate(node.expression, {
+			sp: context.sp,
+			env,
+			action: None,
+		});
+	
 
-		text(node, context) {
-			return buildSequence(
-				[op.PUSH_CURR_POS],
-				generate(node.expression, {
-					sp: context.sp + 1,
-					env: cloneEnv(context.env),
-					action: None,
-				}),
-				buildCondition(
-					node.match | 0,
-					[op.IF_NOT_ERROR],
-					buildSequence([op.POP], [op.TEXT]),
-					[op.NIP]
-				)
-			);
-		},
-
-		simple_and(node, context) {
-			return buildSimplePredicate(node.expression, False, context);
-		},
-
-		simple_not(node, context) {
-			return buildSimplePredicate(node.expression, True, context);
-		},
-
-		optional(node, context) {
-			return buildSequence(
-				generate(node.expression, {
-					sp: context.sp,
-					env: cloneEnv(context.env),
-					action: None,
-				}),
-				buildCondition(
-					# Check expression match, not the node match
-					# If expression always match, no need to replace FAILED to NULL,
-					# because FAILED will never appeared
-					-(node.expression.match | 0),
-					[op.IF_ERROR],
-					buildSequence([op.POP], [op.PUSH_NULL]),
-					[]
-				)
-			);
-		},
-
-		zero_or_more(node, context) {
-			expressionCode = generate(node.expression, {
+	def text(self:Visitor, node:Text, context):
+		return buildSequence(
+			[op.PUSH_CURR_POS],
+			generate(node.expression, {
 				sp: context.sp + 1,
 				env: cloneEnv(context.env),
 				action: None,
-			});
+			}),
+			buildCondition(
+				node.match | 0,
+				[op.IF_NOT_ERROR],
+				buildSequence([op.POP], [op.TEXT]),
+				[op.NIP]
+			)
+		);
+	
 
-			return buildSequence(
-				[op.PUSH_EMPTY_ARRAY],
-				expressionCode,
-				buildAppendLoop(expressionCode),
-				[op.POP]
-			);
-		},
+	def simple_and(self:Visitor, node:Simple_And, context):
+		return buildSimplePredicate(node.expression, False, context);
+	
 
-		one_or_more(node, context) {
-			expressionCode = generate(node.expression, {
-				sp: context.sp + 1,
-				env: cloneEnv(context.env),
-				action: None,
-			});
+	def simple_not(self:Visitor, node:Simple_Not, context):
+		return buildSimplePredicate(node.expression, True, context);
+	
 
-			return buildSequence(
-				[op.PUSH_EMPTY_ARRAY],
-				expressionCode,
-				buildCondition(
-					# Condition depends on the expression match, not the node match
-					node.expression.match | 0,
-					[op.IF_NOT_ERROR],
-					buildSequence(buildAppendLoop(expressionCode), [op.POP]),
-					buildSequence([op.POP], [op.POP], [op.PUSH_FAILED])
-				)
-			);
-		},
-
-		group(node, context) {
-			return generate(node.expression, {
+	def optional(self:Visitor, node:Optional, context):
+		return buildSequence(
+			generate(node.expression, {
 				sp: context.sp,
 				env: cloneEnv(context.env),
 				action: None,
-			});
-		},
+			}),
+			buildCondition(
+				# Check expression match, not the node match
+				# If expression always match, no need to replace FAILED to NULL,
+				# because FAILED will never appeared
+				-(node.expression.match | 0),
+				[op.IF_ERROR],
+				buildSequence([op.POP], [op.PUSH_NULL]),
+				[]
+			)
+		);
+	
 
-		semantic_and(node, context) {
-			return buildSemanticPredicate(node, False, context);
-		},
+	def zero_or_more(self:Visitor, node:Zero_or_More, context):
+		expressionCode = generate(node.expression, {
+			sp: context.sp + 1,
+			env: cloneEnv(context.env),
+			action: None,
+		});
 
-		semantic_not(node, context) {
-			return buildSemanticPredicate(node, True, context);
-		},
+		return buildSequence(
+			[op.PUSH_EMPTY_ARRAY],
+			expressionCode,
+			buildAppendLoop(expressionCode),
+			[op.POP]
+		);
+	
 
-		rule_ref(node) {
-			return [op.RULE, asts.indexOfRule(ast, node.name)];
-		},
+	def one_or_more(self:Visitor, node:One_or_More, context) {
+		expressionCode = generate(node.expression, {
+			sp: context.sp + 1,
+			env: cloneEnv(context.env),
+			action: None,
+		});
 
-		literal(node) {
-			if (node.value.length > 0) {
-				match = node.match | 0;
-				# String only required if condition is generated or string is
-				# case-sensitive and node always match
-				need= match == SOMETIMES_MATCH
-											or (match == ALWAYS_MATCH and !node.ignoreCase);
-				stringIndex = needConst
-					? addLiteralConst(
-						node.ignoreCase ? node.value.toLowerCase() : node.value
-					)
-					: None;
-				# Expectation not required if node always match
-				expectedIndex = (match != ALWAYS_MATCH)
-					? addExpectedConst({
-						type: "literal",
-						value: node.value,
-						ignoreCase: node.ignoreCase,
-					})
-					: None;
+		return buildSequence(
+			[op.PUSH_EMPTY_ARRAY],
+			expressionCode,
+			buildCondition(
+				# Condition depends on the expression match, not the node match
+				node.expression.match | 0,
+				[op.IF_NOT_ERROR],
+				buildSequence(buildAppendLoop(expressionCode), [op.POP]),
+				buildSequence([op.POP], [op.POP], [op.PUSH_FAILED])
+			)
+		);
+	
 
-				# For case-sensitive strings the value must match the beginning of the
-				# remaining input exactly. As a result, we can use |ACCEPT_STRING| and
-				# save one |substr| call that would be needed if we used |ACCEPT_N|.
-				return buildCondition(
-					match,
-					node.ignoreCase
-						? [op.MATCH_STRING_IC, stringIndex]
-						: [op.MATCH_STRING, stringIndex],
-					node.ignoreCase
-						? [op.ACCEPT_N, node.value.length]
-						: [op.ACCEPT_STRING, stringIndex],
-					[op.FAIL, expectedIndex]
-				);
-			}
+	def group(self:Visitor, node:Group, context) {
+		return generate(node.expression, {
+			sp: context.sp,
+			env: cloneEnv(context.env),
+			action: None,
+		});
+	
 
-			return [op.PUSH_EMPTY_STRING];
-		},
+	def semantic_and(self:Visitor, node, context) {
+		return buildSemanticPredicate(node, False, context);
+	
 
-		class(node) {
+	def semantic_not(self:Visitor, node:Semantic_Not, context) {
+		return buildSemanticPredicate(node, True, context);
+	
+
+	def rule_ref(self:Visitor, node:Class, options:dict[str, Any]):
+		return [op.RULE, asts.indexOfRule(ast, node.name)];
+	
+
+	def literal(self:Visitor, node:Class, options:dict[str, Any]):
+		if (node.value.length > 0) {
 			match = node.match | 0;
-			# Character class constant only required if condition is generated
-			classIndex = match == SOMETIMES_MATCH ? addClassConst(node) : None;
+			# String only required if condition is generated or string is
+			# case-sensitive and node always match
+			need= match == SOMETIMES_MATCH
+										or (match == ALWAYS_MATCH and !node.ignoreCase);
+			stringIndex = needConst
+				? addLiteralConst(
+					node.ignoreCase ? node.value.toLowerCase() : node.value
+				)
+				: None;
 			# Expectation not required if node always match
 			expectedIndex = (match != ALWAYS_MATCH)
 				? addExpectedConst({
-					type: "class",
-					value: node.parts,
-					inverted: node.inverted,
+					type: "literal",
+					value: node.value,
 					ignoreCase: node.ignoreCase,
 				})
 				: None;
 
+			# For case-sensitive strings the value must match the beginning of the
+			# remaining input exactly. As a result, we can use |ACCEPT_STRING| and
+			# save one |substr| call that would be needed if we used |ACCEPT_N|.
 			return buildCondition(
 				match,
-				[op.MATCH_CHAR_CLASS, classIndex],
-				[op.ACCEPT_N, 1],
+				node.ignoreCase
+					? [op.MATCH_STRING_IC, stringIndex]
+					: [op.MATCH_STRING, stringIndex],
+				node.ignoreCase
+					? [op.ACCEPT_N, node.value.length]
+					: [op.ACCEPT_STRING, stringIndex],
 				[op.FAIL, expectedIndex]
 			);
-		},
+		}
 
-		any(node) {
-			match = node.match | 0;
-			# Expectation not required if node always match
-			expectedIndex = (match != ALWAYS_MATCH)
-				? addExpectedConst({
-					type: "any",
-				})
-				: None;
+		return [op.PUSH_EMPTY_STRING];
+	
 
-			return buildCondition(
-				match,
-				[op.MATCH_ANY],
-				[op.ACCEPT_N, 1],
-				[op.FAIL, expectedIndex]
-			);
-		},
+	def _class(self:Visitor, node:Class, options:dict[str, Any]):
+		match = node.match | 0;
+		# Character class constant only required if condition is generated
+		classIndex = match == SOMETIMES_MATCH ? addClassConst(node) : None;
+		# Expectation not required if node always match
+		expectedIndex = (match != ALWAYS_MATCH)
+			? addExpectedConst({
+				type: "class",
+				value: node.parts,
+				inverted: node.inverted,
+				ignoreCase: node.ignoreCase,
+			})
+			: None;
+
+		return buildCondition(
+			match,
+			[op.MATCH_CHAR_CLASS, classIndex],
+			[op.ACCEPT_N, 1],
+			[op.FAIL, expectedIndex]
+		);
+	
+
+	def any(self:Visitor, node:Class, options:dict[str, Any]):
+		match = node.match | 0;
+		# Expectation not required if node always match
+		expectedIndex = (match != ALWAYS_MATCH)
+			? addExpectedConst({
+				type: "any",
+			})
+			: None;
+
+		return buildCondition(
+			match,
+			[op.MATCH_ANY],
+			[op.ACCEPT_N, 1],
+			[op.FAIL, expectedIndex]
+		);
+
+	generate = visitor.build({
+		
 	});
 
 	generate(ast);
